@@ -41,6 +41,24 @@ func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
 // non-ignored, exported fields in the destination.
 func (dec *Decoder) DisallowUnknownFields() { dec.d.disallowUnknownFields = true }
 
+// SetDiscriminator tells the decoder to check if JSON objects include a
+// discriminator that specifies the Go type into which the object should be
+// decoded.
+// Map and struct values are encoded as JSON objects as normal, but with an
+// additional field (typeFieldName) that specifies the object's Go type.
+// All other values are encoded inside an outer JSON object with a field
+// (typeFieldName) that specifies the value's Go type and a field
+// (valueFieldName) that specifies the actual value.
+// An optional typeFn may be provided to enable looking up custom types based
+// on type name strings. Built-in types are handled automatically and will be
+// ignored if they are returned by the typeFn.
+// Calling SetDiscriminator("", "", nil) disables the discriminator.
+func (dec *Decoder) SetDiscriminator(typeFieldName, valueFieldName string, typeFn DiscriminatorToTypeFunc) {
+	dec.d.discriminatorTypeFieldName = typeFieldName
+	dec.d.discriminatorValueFieldName = valueFieldName
+	dec.d.discriminatorToTypeFn = typeFn
+}
+
 // Decode reads the next JSON-encoded value from its
 // input and stores it in the value pointed to by v.
 //
@@ -186,6 +204,10 @@ type Encoder struct {
 	indentBuf    *bytes.Buffer
 	indentPrefix string
 	indentValue  string
+
+	discriminatorTypeFieldName  string
+	discriminatorValueFieldName string
+	discriminatorEncodeMode     DiscriminatorEncodeMode
 }
 
 // NewEncoder returns a new encoder that writes to w.
@@ -203,7 +225,12 @@ func (enc *Encoder) Encode(v interface{}) error {
 		return enc.err
 	}
 	e := newEncodeState()
-	err := e.marshal(v, encOpts{escapeHTML: enc.escapeHTML})
+	err := e.marshal(v, encOpts{
+		escapeHTML:                  enc.escapeHTML,
+		discriminatorTypeFieldName:  enc.discriminatorTypeFieldName,
+		discriminatorValueFieldName: enc.discriminatorValueFieldName,
+		discriminatorEncodeMode:     enc.discriminatorEncodeMode,
+	})
 	if err != nil {
 		return err
 	}
@@ -254,6 +281,21 @@ func (enc *Encoder) SetEscapeHTML(on bool) {
 	enc.escapeHTML = on
 }
 
+// SetDiscriminator specifies that a value stored in an interface should be
+// encoded with information about the value's Go type.
+// Map and struct values are encoded as JSON objects as normal, but with an
+// additional field (typeFieldName) that specifies the object's Go type.
+// All other values are encoded inside an outer JSON object with a field
+// (typeFieldName) that specifies the value's Go type and a field
+// (valueFieldName) that specifies the actual value.
+// A mask (mode) is available to control the encoder's behavior.
+// Calling SetDiscriminator("", "", 0) disables the discriminator.
+func (enc *Encoder) SetDiscriminator(typeFieldName, valueFieldName string, mode DiscriminatorEncodeMode) {
+	enc.discriminatorTypeFieldName = typeFieldName
+	enc.discriminatorValueFieldName = valueFieldName
+	enc.discriminatorEncodeMode = mode
+}
+
 // RawMessage is a raw encoded JSON value.
 // It implements Marshaler and Unmarshaler and can
 // be used to delay JSON decoding or precompute a JSON encoding.
@@ -287,7 +329,6 @@ var _ Unmarshaler = (*RawMessage)(nil)
 //	Number, for JSON numbers
 //	string, for JSON string literals
 //	nil, for JSON null
-//
 type Token interface{}
 
 const (
