@@ -295,6 +295,12 @@ type encodeState struct {
 	// reasonable amount of nested pointers deep.
 	ptrLevel uint
 	ptrSeen  map[interface{}]struct{}
+
+	// discriminatorEncodeTypeName is set to true when the type name should
+	// be encoded along with a map or struct value. The flag is flipped back
+	// to false as soon as the type name is encoded to prevent impacting
+	// subsequent values.
+	discriminatorEncodeTypeName bool
 }
 
 const startDetectingCyclesAfter = 1000
@@ -309,6 +315,7 @@ func newEncodeState() *encodeState {
 			panic("ptrEncoder.encode should have emptied ptrSeen via defers")
 		}
 		e.ptrLevel = 0
+		e.discriminatorEncodeTypeName = false
 		return e
 	}
 	return &encodeState{ptrSeen: make(map[interface{}]struct{})}
@@ -318,6 +325,8 @@ func newEncodeState() *encodeState {
 // Panics with errors are wrapped in jsonError so that the top-level recover
 // can distinguish intentional panics from this package.
 type jsonError struct{ error }
+
+var interfaceType = reflect.TypeOf((*interface{})(nil)).Elem()
 
 func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
 	defer func() {
@@ -329,7 +338,13 @@ func (e *encodeState) marshal(v interface{}, opts encOpts) (err error) {
 			}
 		}
 	}()
-	e.reflectValue(reflect.ValueOf(v), opts)
+
+	val := reflect.ValueOf(v)
+	if opts.isDiscriminatorSet() && opts.discriminatorEncodeMode.root() {
+		val = val.Convert(interfaceType)
+	}
+	e.reflectValue(val, opts)
+
 	return nil
 }
 
@@ -356,6 +371,8 @@ func isEmptyValue(v reflect.Value) bool {
 	return false
 }
 
+
+
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
 	valueEncoder(v)(e, v, opts)
 }
@@ -365,6 +382,12 @@ type encOpts struct {
 	quoted bool
 	// escapeHTML causes '<', '>', and '&' to be escaped in JSON strings.
 	escapeHTML bool
+	// see Encoder.SetDiscriminator
+	discriminatorTypeFieldName string
+	// see Encoder.SetDiscriminator
+	discriminatorValueFieldName string
+	// see Encoder.SetDiscriminator
+	discriminatorEncodeMode DiscriminatorEncodeMode
 }
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
@@ -713,6 +736,10 @@ func interfaceEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		e.WriteString("null")
 		return
 	}
+	if opts.isDiscriminatorSet() {
+		discriminatorInterfaceEncode(e, v, opts)
+		return
+	}
 	e.reflectValue(v.Elem(), opts)
 }
 
@@ -731,6 +758,9 @@ type structFields struct {
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	next := byte('{')
+	if opts.isDiscriminatorSet() {
+		next = discriminatorStructEncode(e, v, opts)
+	}
 FieldLoop:
 	for i := range se.fields.list {
 		f := &se.fields.list[i]
@@ -758,6 +788,7 @@ FieldLoop:
 			e.WriteString(f.nameNonEsc)
 		}
 		opts.quoted = f.quoted
+
 		f.encoder(e, fv, opts)
 	}
 	if next == '{' {
@@ -792,6 +823,10 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		defer delete(e.ptrSeen, ptr)
 	}
 	e.WriteByte('{')
+
+	if opts.isDiscriminatorSet() {
+		discriminatorMapEncode(e, v, opts)
+	}
 
 	// Extract and sort the keys.
 	sv := make([]reflectWithString, v.Len())
