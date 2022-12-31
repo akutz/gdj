@@ -217,6 +217,10 @@ type decodeState struct {
 	savedError            error
 	useNumber             bool
 	disallowUnknownFields bool
+
+	discriminatorTypeFieldName   string
+	discriminatorValueFieldName  string
+	discriminatorToTypeFn        DiscriminatorToTypeFunc
 }
 
 // readIndex returns the position of the last byte read.
@@ -621,7 +625,7 @@ func (d *decodeState) object(v reflect.Value) error {
 	t := v.Type()
 
 	// Decoding into nil interface? Switch to non-reflect code.
-	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
+	if v.Kind() == reflect.Interface && v.NumMethod() == 0 && !d.isDiscriminatorSet() {
 		oi := d.objectInterface()
 		v.Set(reflect.ValueOf(oi))
 		return nil
@@ -655,6 +659,9 @@ func (d *decodeState) object(v reflect.Value) error {
 		fields = cachedTypeFields(t)
 		// ok
 	default:
+		if d.isDiscriminatorSet() {
+			return d.discriminatorInterfaceDecode(t, v)
+		}
 		d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
 		d.skip()
 		return nil
@@ -814,7 +821,9 @@ func (d *decodeState) object(v reflect.Value) error {
 				}
 			}
 			if kv.IsValid() {
-				v.SetMapIndex(kv, subv)
+				if !d.isDiscriminatorSet() || kv.String() != d.discriminatorTypeFieldName {
+					v.SetMapIndex(kv, subv)
+				}
 			}
 		}
 
