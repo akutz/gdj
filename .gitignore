@@ -1,1 +1,4 @@
 .DS_Store
+*.go.orig
+*.go.rej
+*.patch
