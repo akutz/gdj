@@ -36,12 +36,6 @@ GO_VERSIONS ?= $(GO_1_17_VERSIONS) \
                $(GO_1_19_VERSIONS) \
                $(GO_1_20_VERSIONS)
 
-GO_1_17_BIN ?= $(HOME)/.go/$(GO_1_17_VERSION)/bin/go
-GO_1_18_BIN ?= $(HOME)/.go/$(GO_1_18_VERSION)/bin/go
-GO_1_19_BIN ?= $(HOME)/.go/$(GO_1_19_VERSION)/bin/go
-GO_1_20_BIN ?= $(HOME)/.go/$(GO_1_20_VERSION)/bin/go
-
-
 ## --------------------------------------
 ## Tests
 ## --------------------------------------
