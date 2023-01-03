@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/akutz/gdj"
+	json "github.com/akutz/gdj"
 )
 
 func ExampleNewEncoder() {
@@ -82,4 +82,75 @@ func ExampleNewDecoder() {
 	fmt.Printf("%+v", group)
 	// Output:
 	// {ID:1 Name:Reds Colors:[[220 20 60] Red {Cyan:0 Magenta:92 Yellow:58 Key:12} 8388608]}
+}
+
+type Person struct {
+	Name       string        `json:"name"`
+	Attributes []interface{} `json:"attributes,omitempty"`
+}
+
+func (p Person) GetName() string {
+	return p.Name
+}
+func (p *Person) SetName(s string) {
+	p.Name = s
+}
+
+type Spouse struct {
+	Person
+}
+
+type CanGetName interface {
+	GetName() string
+}
+type CanSetName interface {
+	SetName(string)
+}
+
+func ExampleNewEncoder_empty_interface() {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetDiscriminator("type", "value", 0)
+
+	enc.Encode(Person{"Andrew", []interface{}{"Austin", uint8(42)}})
+	enc.Encode(Person{"Mandy", []interface{}{Spouse{Person{"Andrew", nil}}}})
+	// Output:
+	// {"name":"Andrew","attributes":[{"type":"string","value":"Austin"},{"type":"uint8","value":42}]}
+	// {"name":"Mandy","attributes":[{"type":"Spouse","name":"Andrew"}]}
+}
+
+func ExampleNewDecoder_empty_interface() {
+	var jsonBlob = `{
+		"name":"Andrew",
+		"attributes":[
+			{"type":"string", "value": "Austin"},
+			{"type":"uint8", "value":42}
+		]
+	}
+	{
+		"name":"Mandy",
+		"attributes":[
+			{"type":"Spouse", "name": "Andrew"}
+		]
+	}`
+
+	dec := json.NewDecoder(strings.NewReader(jsonBlob))
+	dec.SetDiscriminator("type", "value", func(s string) (reflect.Type, bool) {
+		switch s {
+		case "Person":
+			return reflect.TypeOf(Person{}), true
+		case "Spouse":
+			return reflect.TypeOf(Spouse{}), true
+		}
+		return nil, false
+	})
+
+	var p Person
+	dec.Decode(&p)
+	fmt.Printf("%[1]T(%[1]d)\n", p.Attributes[1])
+
+	dec.Decode(&p)
+	fmt.Printf("%[1]T(%[1]s)\n", p.Attributes[0].(Spouse).Name)
+	// Output:
+	// uint8(42)
+	// string(Andrew)
 }
