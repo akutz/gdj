@@ -38,3 +38,5 @@ jobs:
       run: go test -v ./*/*/${{ matrix.dir-name || matrix.go-version }}
     - name: Run Discriminator Tests
       run: go test -v .
+    - name: Run Canary Tests
+      run: cd canaries && go test -v .
