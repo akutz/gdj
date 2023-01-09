@@ -32,9 +32,9 @@ This section explains the changes suggested by the design very briefly. This sec
 
 * This proposal does not recommend or suggest introducing support for the JSON Schema or OpenAPI specification in Golang. Rather this proposal enables the aforementioned projects to build on top of `encoding/json` instead of relying on bespoke JSON decoders to support polymorphic data models with multiple inheritance.
 
-* A discriminator may be used to encode/decode type information for Go types that correspond to the following `relfect.Kind` values: `Bool`, `Int`, `Int8`, `Int16`, `Int32`, `Int64`, `Uint`, `Uint8`, `Uint16`, `Uint32`, `Uint64`, `Uintptr`, `Float32`, `Float64`, `Array`, `Interface`, `Map`, `Pointer`, `Slice`, `String`, `Struct`.
+* A discriminator may be used to encode/decode type information for Go types that correspond to the following `reflect.Kind` values: `Bool`, `Int`, `Int8`, `Int16`, `Int32`, `Int64`, `Uint`, `Uint8`, `Uint16`, `Uint32`, `Uint64`, `Uintptr`, `Float32`, `Float64`, `Array`, `Interface`, `Map`, `Pointer`, `Slice`, `String`, `Struct`.
 
-* A discriminator may **not** be used to encode/decode type information for Go types that correspond to the following `relfect.Kind` values: `Complex64`, `Complex128`, `Chan`, `Func`, `UnsafePointer`.
+* A discriminator may **not** be used to encode/decode type information for Go types that correspond to the following `reflect.Kind` values: `Complex64`, `Complex128`, `Chan`, `Func`, `UnsafePointer`.
 
 * If `reflect.TypeOf(T).Kind()` is a `Struct` or `Map` then the type name is encoded as an additional field inside of the encoded JSON object.
 
