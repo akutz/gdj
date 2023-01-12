@@ -370,8 +370,6 @@ func isEmptyValue(v reflect.Value) bool {
 	return false
 }
 
-
-
 func (e *encodeState) reflectValue(v reflect.Value, opts encOpts) {
 	valueEncoder(v)(e, v, opts)
 }
@@ -385,6 +383,8 @@ type encOpts struct {
 	discriminatorTypeFieldName string
 	// see Encoder.SetDiscriminator
 	discriminatorValueFieldName string
+	// see Encoder.SetDiscriminator
+	discriminatorValueFn TypeToDiscriminatorFunc
 	// see Encoder.SetDiscriminator
 	discriminatorEncodeMode DiscriminatorEncodeMode
 }

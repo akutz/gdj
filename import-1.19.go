@@ -16,6 +16,16 @@ import (
 // options.
 type DiscriminatorEncodeMode = json.DiscriminatorEncodeMode
 
+// TypeToDiscriminatorFunc maps go types to discriminator values.
+type TypeToDiscriminatorFunc = json.TypeToDiscriminatorFunc
+
+// FullName uses the go type name prefixed with package name as discriminator
+// value.
+var FullName = json.FullName
+
+// DefaultDiscriminatorFunc uses the go type name a discriminator.
+var DefaultDiscriminatorFunc = json.DefaultDiscriminatorFunc
+
 const (
 	// DiscriminatorEncodeTypeNameIfRequired is the default behavior when
 	// the discriminator is set, and the type name is only encoded if required.
@@ -29,10 +39,6 @@ const (
 	// for all struct and map values. Please note this specifically does not
 	// apply to the root value.
 	DiscriminatorEncodeTypeNameAllObjects = json.DiscriminatorEncodeTypeNameAllObjects
-
-	// DiscriminatorEncodeTypeNameWithPath causes the type name to be encoded
-	// prefixed with the type's full package path.
-	DiscriminatorEncodeTypeNameWithPath = json.DiscriminatorEncodeTypeNameWithPath
 )
 
 // DiscriminatorToTypeFunc is used to get a reflect.Type from its

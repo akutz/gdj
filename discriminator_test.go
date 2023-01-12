@@ -59,17 +59,26 @@ type DS8 struct {
 	F1 DS3 `json:"f1"`
 }
 
+func customNameWithFilter(t reflect.Type) string {
+	res := json.DefaultDiscriminatorFunc(t)
+	if res == "DS3" {
+		return ""
+	}
+	return res
+}
+
 var discriminatorTests = []struct {
-	obj       interface{}
-	str       string
-	expObj    interface{}
-	expStr    string
-	expEncErr string
-	expDecErr string
-	tf        string
-	vf        string
-	mode      json.DiscriminatorEncodeMode
-	dd        bool
+	obj               interface{}
+	str               string
+	expObj            interface{}
+	expStr            string
+	expEncErr         string
+	expDecErr         string
+	tf                string
+	vf                string
+	mode              json.DiscriminatorEncodeMode
+	dd                bool
+	discriminatorFunc json.TypeToDiscriminatorFunc
 }{
 	// encode/decode nil/null works as expected
 	{obj: nil, str: `null`},
@@ -295,10 +304,12 @@ var discriminatorTests = []struct {
 	// discriminator not used for non-iterface field
 	{obj: DS8{F1: DS3{F1: "hello"}}, str: `{"f1":{"f1":"hello"}}`},
 	{obj: DS8{F1: DS3{F1: "hello"}}, str: `{"_t":"DS8","f1":{"f1":"hello"}}`, mode: json.DiscriminatorEncodeTypeNameRootValue},
+	{obj: DS8{F1: DS3{F1: "hello"}}, str: `{"_t":"DS8","f1":{"_t":"DS3","f1":"hello"}}`, mode: json.DiscriminatorEncodeTypeNameRootValue | json.DiscriminatorEncodeTypeNameAllObjects},
+	{obj: DS8{F1: DS3{F1: "hello"}}, str: `{"_t":"DS8","f1":{"f1":"hello"}}`, mode: json.DiscriminatorEncodeTypeNameRootValue | json.DiscriminatorEncodeTypeNameAllObjects, discriminatorFunc: customNameWithFilter},
 
 	// discriminator with full type path
-	{obj: uint(1), str: `{"_t":"uint","_v":1}`, mode: json.DiscriminatorEncodeTypeNameRootValue | json.DiscriminatorEncodeTypeNameWithPath},
-	{obj: DS2{F1: DS3Noop1{F1: "hello"}}, str: `{"f1":{"_t":"github.com/akutz/gdj_test.DS3Noop1","f1":"hello"}}`, mode: json.DiscriminatorEncodeTypeNameWithPath},
+	{obj: uint(1), str: `{"_t":"uint","_v":1}`, mode: json.DiscriminatorEncodeTypeNameRootValue, discriminatorFunc: json.FullName},
+	{obj: DS2{F1: DS3Noop1{F1: "hello"}}, str: `{"f1":{"_t":"github.com/akutz/gdj_test.DS3Noop1","f1":"hello"}}`, discriminatorFunc: json.FullName},
 }
 
 func discriminatorToTypeFn(discriminator string) (reflect.Type, bool) {
@@ -395,6 +406,7 @@ func testDiscriminatorEncode(t *testing.T) {
 
 			enc := json.NewEncoder(&w)
 			enc.SetDiscriminator(tc.tf, tc.vf, tc.mode)
+			enc.SetTypeToDiscriminatorFunc(tc.discriminatorFunc)
 
 			if err := enc.Encode(tc.obj); err != nil {
 				if ee != err.Error() {
@@ -430,7 +442,7 @@ func testDiscriminatorDecode(t *testing.T) {
 				obj interface{}
 			)
 
-			if tc.obj == nil || tc.mode&json.DiscriminatorEncodeTypeNameRootValue > 0 {
+			if tc.obj == nil || tc.mode&json.DiscriminatorEncodeTypeNameRootValue != 0 {
 				err = dec.Decode(&obj)
 			} else {
 				switch reflect.TypeOf(tc.obj).Name() {
