@@ -7,6 +7,7 @@ package canaries
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -547,25 +548,96 @@ var vmInfoObjForTests = types.VirtualMachineConfigInfo{
 	DeviceGroups: &types.VirtualMachineVirtualDeviceGroups{},
 }
 
+var discriminatorTypeRegistry = map[string]reflect.Type{
+	"boolean": reflect.TypeOf(true),
+	"byte":    reflect.TypeOf(int8(0)),
+	"short":   reflect.TypeOf(int16(0)),
+	"int":     reflect.TypeOf(int32(0)),
+	"long":    reflect.TypeOf(int64(0)),
+	"float":   reflect.TypeOf(float64(0)),
+	"string":  reflect.TypeOf(""),
+}
+
 func TestPropertyCollector(t *testing.T) {
 	t.Run("Decode output", func(t *testing.T) {
-		f, err := os.Open("./testdata/propertyCollector_output.json")
+		propertyCollectorResp, err := os.ReadFile("./testdata/propertyCollector_output.json")
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer f.Close()
 		var result types.RetrieveResult
 
-		dec := json.NewDecoder(f)
+		dec := json.NewDecoder(bytes.NewReader(propertyCollectorResp))
 		dec.SetDiscriminator(
 			"_typeName", "_value",
-			json.DiscriminatorToTypeFunc(types.TypeFunc()),
+			json.DiscriminatorToTypeFunc(func(name string) (reflect.Type, bool) {
+				//var res reflect.Type
+				if res, ok := types.TypeFunc()(name); ok {
+					return res, true
+				}
+				if res, ok := discriminatorTypeRegistry[name]; ok {
+					return res, true
+				}
+				return nil, false
+			}),
 		)
 
 		err = dec.Decode(&result)
 		if err != nil {
 			t.Fatal(err)
 		}
+		if len(result.Objects) != 1 {
+			t.Fatalf("Expected 1 object got %v", len(result.Objects))
+		}
+		if len(result.Objects[0].PropSet) != 17 {
+			t.Fatalf("Expected 17 properties but got %v", len(result.Objects[0].PropSet))
+		}
+
+		var w bytes.Buffer
+		_ = w
+		enc := json.NewEncoder(&w)
+		enc.SetIndent("", "  ")
+		enc.SetDiscriminator(
+			"_typeName",
+			"_value",
+			json.DiscriminatorEncodeTypeNameRootValue|
+				json.DiscriminatorEncodeTypeNameAllObjects,
+		)
+
+		if err := enc.Encode(result); err != nil {
+			t.Fatal(err)
+		}
+
+		expected := string(propertyCollectorResp)
+		actual := w.String()
+		assert.JSONEq(t, expected, actual)
 
 	})
+}
+
+func TestDynamicPropertyArray(t *testing.T) {
+	dp := types.DynamicProperty{
+		Name: "test",
+		Val: types.ArrayOfString{
+			String: []string{"Hello", "World"},
+		},
+	}
+
+	w := bytes.Buffer{}
+	enc := json.NewEncoder(&w)
+	enc.SetIndent("", "  ")
+	enc.SetDiscriminator(
+		"_typeName",
+		"_value",
+		json.DiscriminatorEncodeTypeNameRootValue|
+			json.DiscriminatorEncodeTypeNameAllObjects,
+	)
+
+	err := enc.Encode(&dp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jsonText := w.String()
+	if len(jsonText) < 300 {
+		t.Fatalf("Expected longer output: %v", jsonText)
+	}
 }
