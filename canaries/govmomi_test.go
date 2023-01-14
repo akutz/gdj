@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/vim25/types"
 
-	"github.com/akutz/gdj"
+	json "github.com/akutz/gdj"
 )
 
 func TestVirtualMachineConfigInfo(t *testing.T) {
@@ -545,4 +545,27 @@ var vmInfoObjForTests = types.VirtualMachineConfigInfo{
 	},
 	Pmem:         nil,
 	DeviceGroups: &types.VirtualMachineVirtualDeviceGroups{},
+}
+
+func TestPropertyCollector(t *testing.T) {
+	t.Run("Decode output", func(t *testing.T) {
+		f, err := os.Open("./testdata/propertyCollector_output.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		var result types.RetrieveResult
+
+		dec := json.NewDecoder(f)
+		dec.SetDiscriminator(
+			"_typeName", "_value",
+			json.DiscriminatorToTypeFunc(types.TypeFunc()),
+		)
+
+		err = dec.Decode(&result)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	})
 }
