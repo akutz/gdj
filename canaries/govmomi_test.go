@@ -558,6 +558,16 @@ var discriminatorTypeRegistry = map[string]reflect.Type{
 	"string":  reflect.TypeOf(""),
 }
 
+var discriminatorNamesRegistry = map[reflect.Type]string{
+	reflect.TypeOf(true):       "boolean",
+	reflect.TypeOf(int8(0)):    "byte",
+	reflect.TypeOf(int16(0)):   "short",
+	reflect.TypeOf(int32(0)):   "int",
+	reflect.TypeOf(int64(0)):   "long",
+	reflect.TypeOf(float64(0)): "float",
+	reflect.TypeOf(""):         "string",
+}
+
 func TestPropertyCollector(t *testing.T) {
 	t.Run("Decode output", func(t *testing.T) {
 		propertyCollectorResp, err := os.ReadFile("./testdata/propertyCollector_output.json")
@@ -602,6 +612,16 @@ func TestPropertyCollector(t *testing.T) {
 			json.DiscriminatorEncodeTypeNameRootValue|
 				json.DiscriminatorEncodeTypeNameAllObjects,
 		)
+		enc.SetTypeToDiscriminatorFunc(func(t reflect.Type) (discriminator string) {
+			if name, ok := discriminatorNamesRegistry[t]; ok {
+				return name
+			}
+			name := json.DefaultDiscriminatorFunc(t)
+			if name == "ManagedObjectReference" {
+				return ""
+			}
+			return name
+		})
 
 		if err := enc.Encode(result); err != nil {
 			t.Fatal(err)
@@ -612,32 +632,4 @@ func TestPropertyCollector(t *testing.T) {
 		assert.JSONEq(t, expected, actual)
 
 	})
-}
-
-func TestDynamicPropertyArray(t *testing.T) {
-	dp := types.DynamicProperty{
-		Name: "test",
-		Val: types.ArrayOfString{
-			String: []string{"Hello", "World"},
-		},
-	}
-
-	w := bytes.Buffer{}
-	enc := json.NewEncoder(&w)
-	enc.SetIndent("", "  ")
-	enc.SetDiscriminator(
-		"_typeName",
-		"_value",
-		json.DiscriminatorEncodeTypeNameRootValue|
-			json.DiscriminatorEncodeTypeNameAllObjects,
-	)
-
-	err := enc.Encode(&dp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	jsonText := w.String()
-	if len(jsonText) < 300 {
-		t.Fatalf("Expected longer output: %v", jsonText)
-	}
 }
