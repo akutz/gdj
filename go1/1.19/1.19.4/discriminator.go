@@ -356,6 +356,8 @@ func discriminatorStructEncode(e *encodeState, v reflect.Value, opts encOpts) by
 }
 
 var discriminatorTypeRegistry = map[string]reflect.Type{
+	"byte":         reflect.TypeOf(byte(0)),
+	"rune":         reflect.TypeOf(rune(0)),
 	"uint":         reflect.TypeOf(uint(0)),
 	"uint8":        reflect.TypeOf(uint8(0)),
 	"uint16":       reflect.TypeOf(uint16(0)),
