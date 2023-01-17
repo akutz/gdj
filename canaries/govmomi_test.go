@@ -580,7 +580,6 @@ func TestPropertyCollector(t *testing.T) {
 		dec.SetDiscriminator(
 			"_typeName", "_value",
 			json.DiscriminatorToTypeFunc(func(name string) (reflect.Type, bool) {
-				//var res reflect.Type
 				if res, ok := types.TypeFunc()(name); ok {
 					return res, true
 				}
