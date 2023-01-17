@@ -45,6 +45,12 @@ const (
 // discriminator.
 type DiscriminatorToTypeFunc = json.DiscriminatorToTypeFunc
 
+// An Encoder writes JSON values to an output stream.
+type Encoder = json.Encoder
+
+// Decoder read JSON stream into golang values .
+type Decoder = json.Decoder
+
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *json.Encoder {
 	return json.NewEncoder(w)

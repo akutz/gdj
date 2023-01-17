@@ -4,6 +4,7 @@
         {
             "_typeName": "ObjectContent",
             "obj": {
+                "_typeName": "ManagedObjectReference",
                 "value": "group-d1",
                 "type": "Folder"
             },
@@ -74,10 +75,12 @@
                                 "_typeName": "AlarmState",
                                 "key": "alarm-328.group-d1",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
                                 "alarm": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "alarm-328",
                                     "type": "Alarm"
                                 },
@@ -89,10 +92,12 @@
                                 "_typeName": "AlarmState",
                                 "key": "alarm-327.group-d1",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
                                 "alarm": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "alarm-327",
                                     "type": "Alarm"
                                 },
@@ -105,10 +110,12 @@
                                 "_typeName": "AlarmState",
                                 "key": "alarm-326.group-d1",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
                                 "alarm": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "alarm-326",
                                     "type": "Alarm"
                                 },
@@ -161,6 +168,7 @@
                             {
                                 "_typeName": "Permission",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
@@ -172,6 +180,7 @@
                             {
                                 "_typeName": "Permission",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
@@ -183,6 +192,7 @@
                             {
                                 "_typeName": "Permission",
                                 "entity": {
+                                    "_typeName": "ManagedObjectReference",
                                     "value": "group-d1",
                                     "type": "Folder"
                                 },
@@ -201,14 +211,17 @@
                         "_typeName": "ArrayOfManagedObjectReference",
                         "_value": [
                             {
+                                "_typeName": "ManagedObjectReference",
                                 "value": "task-186",
                                 "type": "Task"
                             },
                             {
+                                "_typeName": "ManagedObjectReference",
                                 "value": "task-187",
                                 "type": "Task"
                             },
                             {
+                                "_typeName": "ManagedObjectReference",
                                 "value": "task-188",
                                 "type": "Task"
                             }
