@@ -7,66 +7,76 @@ package canaries
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/govmomi/vim25/types"
-
-	"github.com/akutz/gdj"
 )
 
-func TestVirtualMachineConfigInfo(t *testing.T) {
+var serializationTests = []struct {
+	name   string
+	file   string
+	data   interface{}
+	goType reflect.Type
+}{
+	{
+		name:   "vminfo",
+		file:   "./testdata/vminfo.json",
+		data:   &vmInfoObjForTests,
+		goType: reflect.TypeOf(types.VirtualMachineConfigInfo{}),
+	},
+	{
+		name:   "retrieveResult",
+		file:   "./testdata/retrieveResult.json",
+		data:   &retrieveResultForTests,
+		goType: reflect.TypeOf(types.RetrieveResult{}),
+	},
+}
 
-	t.Run("Decode", func(t *testing.T) {
-		f, err := os.Open("./testdata/vminfo.json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
+func TestSerialization(t *testing.T) {
+	for _, test := range serializationTests {
+		t.Run(test.name+" Decode", func(t *testing.T) {
+			f, err := os.Open(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
 
-		dec := json.NewDecoder(f)
-		dec.SetDiscriminator(
-			"_typeName", "_value",
-			json.DiscriminatorToTypeFunc(types.TypeFunc()),
-		)
+			dec := NewGovmomiDecoder(f)
 
-		var vmInfo types.VirtualMachineConfigInfo
-		if err := dec.Decode(&vmInfo); err != nil {
-			t.Fatal(err)
-		}
+			data := reflect.New(test.goType).Interface()
+			if err := dec.Decode(data); err != nil {
+				t.Fatal(err)
+			}
 
-		a, e := vmInfo, vmInfoObjForTests
+			a, e := data, test.data
 
-		if diff := cmp.Diff(a, e); diff != "" {
-			t.Errorf("mismatched vminfo: %s", diff)
-		}
-	})
+			if diff := cmp.Diff(a, e); diff != "" {
+				t.Errorf("mismatched %v: %s", test.name, diff)
+			}
+		})
 
-	t.Run("Encode", func(t *testing.T) {
-		expJSON, err := os.ReadFile("./testdata/vminfo.json")
-		if err != nil {
-			t.Fatal(err)
-		}
+		t.Run(test.name+" Encode", func(t *testing.T) {
+			expJSON, err := os.ReadFile(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		var w bytes.Buffer
-		_ = w
-		enc := json.NewEncoder(&w)
-		enc.SetIndent("", "  ")
-		enc.SetDiscriminator(
-			"_typeName",
-			"_value",
-			json.DiscriminatorEncodeTypeNameRootValue|
-				json.DiscriminatorEncodeTypeNameAllObjects,
-		)
+			var w bytes.Buffer
+			_ = w
+			enc := NewGovmomiEncoder(&w)
 
-		if err := enc.Encode(&vmInfoObjForTests); err != nil {
-			t.Fatal(err)
-		}
+			if err := enc.Encode(test.data); err != nil {
+				t.Fatal(err)
+			}
 
-		assert.JSONEq(t, string(expJSON), w.String())
-	})
+			expected, actual := string(expJSON), w.String()
+			assert.JSONEq(t, expected, actual)
+		})
+	}
 }
 
 var vmInfoObjForTests = types.VirtualMachineConfigInfo{
@@ -545,4 +555,206 @@ var vmInfoObjForTests = types.VirtualMachineConfigInfo{
 	},
 	Pmem:         nil,
 	DeviceGroups: &types.VirtualMachineVirtualDeviceGroups{},
+}
+
+var retrieveResultForTests = types.RetrieveResult{
+	Token: "",
+	Objects: []types.ObjectContent{
+
+		{
+
+			DynamicData: types.DynamicData{},
+			Obj: types.ManagedObjectReference{
+
+				Type:  "Folder",
+				Value: "group-d1",
+			},
+			PropSet: []types.DynamicProperty{
+				{
+
+					Name: "alarmActionsEnabled",
+					Val:  true,
+				},
+				{
+
+					Name: "availableField",
+					Val: types.ArrayOfCustomFieldDef{
+
+						CustomFieldDef: []types.CustomFieldDef{},
+					},
+				},
+
+				{
+
+					Name: "childEntity",
+					Val: types.ArrayOfManagedObjectReference{
+						ManagedObjectReference: []types.ManagedObjectReference{},
+					},
+				},
+				{
+					Name: "childType",
+					Val: types.ArrayOfString{
+						String: []string{
+							"Folder",
+							"Datacenter"},
+					},
+				},
+				{
+					Name: "configIssue",
+					Val: types.ArrayOfEvent{
+						Event: []types.BaseEvent{},
+					},
+				},
+				{
+					Name: "configStatus",
+					Val:  types.ManagedEntityStatusGray},
+				{
+					Name: "customValue",
+					Val: types.ArrayOfCustomFieldValue{
+						CustomFieldValue: []types.BaseCustomFieldValue{},
+					},
+				},
+				{
+					Name: "declaredAlarmState",
+					Val: types.ArrayOfAlarmState{
+						AlarmState: []types.AlarmState{
+							{
+								Key: "alarm-328.group-d1",
+								Entity: types.ManagedObjectReference{
+									Type:  "Folder",
+									Value: "group-d1"},
+								Alarm: types.ManagedObjectReference{
+									Type:  "Alarm",
+									Value: "alarm-328"},
+								OverallStatus: "gray",
+								Time:          time.Date(2023, time.January, 14, 8, 57, 35, 279575000, time.UTC),
+								Acknowledged:  addrOfBool(false),
+							},
+							{
+								Key: "alarm-327.group-d1",
+								Entity: types.ManagedObjectReference{
+									Type:  "Folder",
+									Value: "group-d1"},
+								Alarm: types.ManagedObjectReference{
+									Type:  "Alarm",
+									Value: "alarm-327"},
+								OverallStatus: "green",
+								Time:          time.Date(2023, time.January, 14, 8, 56, 40, 83607000, time.UTC),
+								Acknowledged:  addrOfBool(false),
+								EventKey:      756,
+							},
+							{
+								DynamicData: types.DynamicData{},
+								Key:         "alarm-326.group-d1",
+								Entity: types.ManagedObjectReference{
+									Type:  "Folder",
+									Value: "group-d1"},
+								Alarm: types.ManagedObjectReference{
+									Type:  "Alarm",
+									Value: "alarm-326"},
+								OverallStatus: "green",
+								Time: time.Date(2023,
+									time.January,
+									14,
+									8,
+									56,
+									35,
+									82616000,
+									time.UTC),
+								Acknowledged: addrOfBool(false),
+								EventKey:     751,
+							},
+						},
+					},
+				},
+				{
+					Name: "disabledMethod",
+					Val: types.ArrayOfString{
+						String: []string{},
+					},
+				},
+				{
+					Name: "effectiveRole",
+					Val: types.ArrayOfInt{
+						Int: []int32{-1},
+					},
+				},
+				{
+					Name: "name",
+					Val:  "Datacenters"},
+				{
+					Name: "overallStatus",
+					Val:  types.ManagedEntityStatusGray},
+				{
+					Name: "permission",
+					Val: types.ArrayOfPermission{
+						Permission: []types.Permission{
+							{
+								Entity: &types.ManagedObjectReference{
+									Value: "group-d1",
+									Type:  "Folder",
+								},
+								Principal: "VSPHERE.LOCAL\\vmware-vsm-2bd917c6-e084-4d1f-988d-a68f7525cc94",
+								Group:     false,
+								RoleId:    1034,
+								Propagate: true},
+							{
+								Entity: &types.ManagedObjectReference{
+									Value: "group-d1",
+									Type:  "Folder",
+								},
+								Principal: "VSPHERE.LOCAL\\topologysvc-2bd917c6-e084-4d1f-988d-a68f7525cc94",
+								Group:     false,
+								RoleId:    1024,
+								Propagate: true},
+							{
+								Entity: &types.ManagedObjectReference{
+									Value: "group-d1",
+									Type:  "Folder",
+								},
+								Principal: "VSPHERE.LOCAL\\vpxd-extension-2bd917c6-e084-4d1f-988d-a68f7525cc94",
+								Group:     false,
+								RoleId:    -1,
+								Propagate: true},
+						},
+					},
+				},
+				{
+					Name: "recentTask",
+					Val: types.ArrayOfManagedObjectReference{
+						ManagedObjectReference: []types.ManagedObjectReference{
+							{
+								Type:  "Task",
+								Value: "task-186"},
+							{
+								Type:  "Task",
+								Value: "task-187"},
+							{
+								Type:  "Task",
+								Value: "task-188"},
+						},
+					},
+				},
+				{
+					Name: "tag",
+					Val: types.ArrayOfTag{
+						Tag: []types.Tag{},
+					},
+				},
+				{
+					Name: "triggeredAlarmState",
+					Val: types.ArrayOfAlarmState{
+						AlarmState: []types.AlarmState{},
+					},
+				},
+				{
+					Name: "value",
+					Val: types.ArrayOfCustomFieldValue{
+						CustomFieldValue: []types.BaseCustomFieldValue{},
+					},
+				},
+			},
+			MissingSet: nil,
+		},
+	},
 }

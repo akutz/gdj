@@ -16,15 +16,41 @@ import (
 // discriminator.
 type DiscriminatorToTypeFunc func(discriminator string) (reflect.Type, bool)
 
+// TypeToDiscriminatorFunc is used to get a discriminator string from a
+// reflect.Type. Empty return value suppresses discriminator rendering.
+type TypeToDiscriminatorFunc func(reflect.Type) (discriminator string)
+
+// DefaultDiscriminatorFunc is shorthand for the ShortName func and is used when
+// no other discriminator func is set explicitly
+var DefaultDiscriminatorFunc = ShortName
+
+// ShortName returns the type name in golang without the package name
+func ShortName(t reflect.Type) (discriminator string) {
+	tn := t.Name()
+	if tn == "" {
+		return t.String()
+	}
+	return tn
+}
+
+// FullName return the name of the type prefixed with the package name as
+// appropriate
+func FullName(t reflect.Type) (discriminator string) {
+	tn := t.Name()
+	if tn == "" {
+		return t.String()
+	}
+	if pp := t.PkgPath(); pp != "" {
+		return fmt.Sprintf("%s.%s", pp, tn)
+	}
+	return tn
+}
+
 // DiscriminatorEncodeMode is a mask that describes the different encode
 // options.
 type DiscriminatorEncodeMode uint8
 
 const (
-	// DiscriminatorEncodeTypeNameIfRequired is the default behavior when
-	// the discriminator is set, and the type name is only encoded if required.
-	DiscriminatorEncodeTypeNameIfRequired DiscriminatorEncodeMode = 0
-
 	// DiscriminatorEncodeTypeNameRootValue causes the type name to be encoded
 	// for the root value.
 	DiscriminatorEncodeTypeNameRootValue DiscriminatorEncodeMode = 1 << iota
@@ -34,9 +60,9 @@ const (
 	// apply to the root value.
 	DiscriminatorEncodeTypeNameAllObjects
 
-	// DiscriminatorEncodeTypeNameWithPath causes the type name to be encoded
-	// prefixed with the type's full package path.
-	DiscriminatorEncodeTypeNameWithPath
+	// DiscriminatorEncodeTypeNameIfRequired is the default behavior when
+	// the discriminator is set, and the type name is only encoded if required.
+	DiscriminatorEncodeTypeNameIfRequired DiscriminatorEncodeMode = 0
 )
 
 func (m DiscriminatorEncodeMode) root() bool {
@@ -45,10 +71,6 @@ func (m DiscriminatorEncodeMode) root() bool {
 
 func (m DiscriminatorEncodeMode) all() bool {
 	return m&DiscriminatorEncodeTypeNameAllObjects > 0
-}
-
-func (m DiscriminatorEncodeMode) withPath() bool {
-	return m&DiscriminatorEncodeTypeNameWithPath > 0
 }
 
 func (d *decodeState) isDiscriminatorSet() bool {
@@ -288,19 +310,6 @@ func (o encOpts) isDiscriminatorSet() bool {
 		o.discriminatorValueFieldName != ""
 }
 
-func discriminatorGetTypeName(t reflect.Type, mode DiscriminatorEncodeMode) string {
-	tn := t.Name()
-	if tn == "" {
-		return t.String()
-	}
-	if mode.withPath() {
-		if pp := t.PkgPath(); pp != "" {
-			return fmt.Sprintf("%s.%s", pp, tn)
-		}
-	}
-	return tn
-}
-
 func discriminatorInterfaceEncode(e *encodeState, v reflect.Value, opts encOpts) {
 	v = v.Elem()
 	switch v.Kind() {
@@ -315,10 +324,15 @@ func discriminatorInterfaceEncode(e *encodeState, v reflect.Value, opts encOpts)
 	case reflect.Ptr:
 		discriminatorInterfaceEncode(e, v, opts)
 	default:
+		discriminatorValue := opts.discriminatorValueFn(v.Type())
+		if discriminatorValue == "" {
+			e.reflectValue(v, opts)
+			return
+		}
 		e.WriteString(`{"`)
 		e.WriteString(opts.discriminatorTypeFieldName)
 		e.WriteString(`":"`)
-		e.WriteString(discriminatorGetTypeName(v.Type(), opts.discriminatorEncodeMode))
+		e.WriteString(discriminatorValue)
 		e.WriteString(`","`)
 		e.WriteString(opts.discriminatorValueFieldName)
 		e.WriteString(`":`)
@@ -331,10 +345,14 @@ func discriminatorMapEncode(e *encodeState, v reflect.Value, opts encOpts) {
 	if !e.discriminatorEncodeTypeName && !opts.discriminatorEncodeMode.all() {
 		return
 	}
+	discriminatorValue := opts.discriminatorValueFn(v.Type())
+	if discriminatorValue == "" {
+		return
+	}
 	e.WriteByte('"')
 	e.WriteString(opts.discriminatorTypeFieldName)
 	e.WriteString(`":"`)
-	e.WriteString(discriminatorGetTypeName(v.Type(), opts.discriminatorEncodeMode))
+	e.WriteString(discriminatorValue)
 	e.WriteByte('"')
 	if v.Len() > 0 {
 		e.WriteByte(',')
@@ -346,10 +364,14 @@ func discriminatorStructEncode(e *encodeState, v reflect.Value, opts encOpts) by
 	if !e.discriminatorEncodeTypeName && !opts.discriminatorEncodeMode.all() {
 		return '{'
 	}
+	discriminatorValue := opts.discriminatorValueFn(v.Type())
+	if discriminatorValue == "" {
+		return '{'
+	}
 	e.WriteString(`{"`)
 	e.WriteString(opts.discriminatorTypeFieldName)
 	e.WriteString(`":"`)
-	e.WriteString(discriminatorGetTypeName(v.Type(), opts.discriminatorEncodeMode))
+	e.WriteString(discriminatorValue)
 	e.WriteByte('"')
 	e.discriminatorEncodeTypeName = false
 	return ','

@@ -208,6 +208,7 @@ type Encoder struct {
 	discriminatorTypeFieldName  string
 	discriminatorValueFieldName string
 	discriminatorEncodeMode     DiscriminatorEncodeMode
+	typeToDiscriminatorFn       TypeToDiscriminatorFunc
 }
 
 // NewEncoder returns a new encoder that writes to w.
@@ -230,6 +231,7 @@ func (enc *Encoder) Encode(v any) error {
 		discriminatorTypeFieldName:  enc.discriminatorTypeFieldName,
 		discriminatorValueFieldName: enc.discriminatorValueFieldName,
 		discriminatorEncodeMode:     enc.discriminatorEncodeMode,
+		discriminatorValueFn:        enc.typeToDiscriminatorFn,
 	})
 	if err != nil {
 		return err
@@ -294,6 +296,21 @@ func (enc *Encoder) SetDiscriminator(typeFieldName, valueFieldName string, mode 
 	enc.discriminatorTypeFieldName = typeFieldName
 	enc.discriminatorValueFieldName = valueFieldName
 	enc.discriminatorEncodeMode = mode
+	enc.typeToDiscriminatorFn = DefaultDiscriminatorFunc
+}
+
+// SetTypeToDiscriminatorFunc allows for customizing the discriminator value for
+// different types. This may be useful if the golang struct names do not match
+// the desired values. One example would be if discriminator values in a
+// protocol require special characters or start with lowercase letter. The
+// TypeToDiscriminatorFunc implementation may return empty string to suppress
+// the rendering of discriminator for specific type(s).
+func (enc *Encoder) SetTypeToDiscriminatorFunc(f TypeToDiscriminatorFunc) {
+	if f == nil {
+		enc.typeToDiscriminatorFn = DefaultDiscriminatorFunc
+		return
+	}
+	enc.typeToDiscriminatorFn = f
 }
 
 // RawMessage is a raw encoded JSON value.
