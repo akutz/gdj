@@ -239,6 +239,7 @@ func (d *decodeState) discriminatorGetValue() (reflect.Value, error) {
 	// This will initialize the correct scan step and op code.
 	dd.scanWhile(scanSkipSpace)
 
+	fmt.Printf("dd.disallowUnknownFields=%v\n", dd.disallowUnknownFields)
 	// Decode the data into the value.
 	if err := dd.value(v); err != nil {
 		return reflect.Value{}, err

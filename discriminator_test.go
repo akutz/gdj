@@ -60,16 +60,17 @@ type DS8 struct {
 }
 
 var discriminatorTests = []struct {
-	obj       interface{}
-	str       string
-	expObj    interface{}
-	expStr    string
-	expEncErr string
-	expDecErr string
-	tf        string
-	vf        string
-	mode      json.DiscriminatorEncodeMode
-	dd        bool
+	obj                   interface{}
+	str                   string
+	expObj                interface{}
+	expStr                string
+	expEncErr             string
+	expDecErr             string
+	tf                    string
+	vf                    string
+	mode                  json.DiscriminatorEncodeMode
+	dd                    bool
+	disallowUnknownFields bool
 }{
 	// encode/decode nil/null works as expected
 	{obj: nil, str: `null`},
@@ -84,6 +85,9 @@ var discriminatorTests = []struct {
 	// encode/decode boolean works as expected
 	{obj: true, str: `true`},
 	{obj: false, str: `false`},
+
+	// exported field as type name with DisallowUnknownFields
+	{obj: uint(1), str: `{"TypeName":"uint","_v":1}`, mode: json.DiscriminatorEncodeTypeNameRootValue, tf: "TypeName", disallowUnknownFields: true},
 
 	// primitive values with root object encoded with type name
 	{obj: uint(1), str: `{"_t":"uint","_v":1}`, mode: json.DiscriminatorEncodeTypeNameRootValue},
@@ -423,6 +427,9 @@ func testDiscriminatorDecode(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			ee := tc.expDecErr
 			dec := json.NewDecoder(strings.NewReader(tc.str))
+			if tc.disallowUnknownFields {
+				dec.DisallowUnknownFields()
+			}
 			dec.SetDiscriminator(tc.tf, tc.vf, discriminatorToTypeFn)
 
 			var (
